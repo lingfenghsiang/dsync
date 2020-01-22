@@ -2,7 +2,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include <string.h>
-#define FILE_SIZE 100
+#define FILE_SIZE 102400
 int main(void)
 {
     u_int16_t randm;

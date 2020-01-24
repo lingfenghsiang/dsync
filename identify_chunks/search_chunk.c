@@ -7,6 +7,7 @@
 
 #define SymbolCount 256
 #define SeedLength 64
+#define CacheSize 1024 * 1024
 
 struct chunk_fingerprint
 {
@@ -42,31 +43,43 @@ int fastCDC_chunking(int *src, int buffer_length);
 int main(void)
 {
     // codes below are just for testing
-    FILE* random_file;
-    char* fileCache=(char *)malloc(1024*1024);
-    random_file = fopen("./random_file", "r");
-    fread(,,1,random_file);
-
-
-    uLong adler = adler32(0L, Z_NULL, 0);
-    char string[] = "helloworld";
-
-    adler = adler32(adler, string, 5);
-
+    FILE *random_file;
     uint8_t SHA1_digest[20];
-    SHA1("hello", 5, SHA1_digest);
-    struct chunk_fingerprint a;
-    memcpy(a.fingerprints, SHA1_digest, 20);
+    uLong adler;
+    struct chunk_fingerprint newChunk;
+    char *fileCache = (char *)malloc(CacheSize);
+    int offset = 0, chunkLength = 8096, readFlag = 0;
+    random_file = fopen("./random_file", "r");
+    fread(fileCache, CacheSize, 1, random_file);
 
-    a.next = NULL;
-    add_user(adler, a);
-    printf("the sha1 calue is %x\n", SHA1_digest);
-    printf("the adler32 calue is %x\n", adler);
-    SHA1_digest[0] += 1;
-    memcpy(a.fingerprints, SHA1_digest, 20);
-    add_user(adler, a);
+    for (;;)
+    {
+        // calculate the fingerprints
+        adler = adler32(0L, Z_NULL, 0);
+        adler = adler32(adler, fileCache + offset, chunkLength);
+        SHA1(fileCache + offset, chunkLength, SHA1_digest);
+        // update the fingerprints of chunks
+        memcpy(newChunk.fingerprints, SHA1_digest, 20);
+        newChunk.next = NULL;
+        add_user(adler, newChunk);
+        offset += chunkLength;
+        if (CacheSize - offset < MaxSize)
+        {
+            memcpy(fileCache, fileCache + offset, CacheSize - offset);
+            if (fread(fileCache + CacheSize - offset, offset, 1, random_file) < offset && readFlag == 0)
+            {
+                // all the files are read
+                readFlag = 1;
+            }
+            offset = 0;
+        }
+    }
+
+    // clear the items
     output_chunk_hash_info();
     delete_all();
+    free(fileCache);
+    fileCache = NULL;
     return 0;
 }
 

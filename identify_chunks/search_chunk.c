@@ -47,13 +47,19 @@ int main(void)
     uint8_t SHA1_digest[20];
     uLong adler;
     struct chunk_fingerprint newChunk;
+    size_t readStatus = 0;
+    int chunk_num = 0, end = CacheSize - 1;
     char *fileCache = (char *)malloc(CacheSize);
-    int offset = 0, chunkLength = 8096, readFlag = 0;
-    random_file = fopen("./random_file", "r");
-    fread(fileCache, CacheSize, 1, random_file);
+    int offset = 0, chunkLength = 0, readFlag = 0;
+    fastCDC_init();
+    random_file = fopen("./random_data", "r+");
+    readStatus = fread(fileCache, 1, CacheSize, random_file);
 
     for (;;)
     {
+        chunk_num+=1;
+        // get the length of the chunk, input the cache prt
+        chunkLength = 8192;
         // calculate the fingerprints
         adler = adler32(0L, Z_NULL, 0);
         adler = adler32(adler, fileCache + offset, chunkLength);
@@ -65,16 +71,20 @@ int main(void)
         offset += chunkLength;
         if (CacheSize - offset < MaxSize)
         {
-            memcpy(fileCache, fileCache + offset, CacheSize - offset);
-            if (fread(fileCache + CacheSize - offset, offset, 1, random_file) < offset && readFlag == 0)
+            memcpy(fileCache, fileCache + offset + 1, CacheSize - offset);
+            readStatus = fread(fileCache + CacheSize - offset, 1, offset + 1, random_file);
+            end = CacheSize - offset + readStatus - 1;
+            if (readStatus < offset + 1)
             {
                 // all the files are read
                 readFlag = 1;
             }
             offset = 0;
         }
+        if (offset-1 >= end && readFlag == 1)
+            break;
     }
-
+    printf("chunknum is %d\n", chunk_num);
     // clear the items
     output_chunk_hash_info();
     delete_all();
@@ -223,7 +233,7 @@ void fastCDC_init(void)
             seed[j] = i;
         }
         g_global_matrix[i] = 0;
-        md5(seed, SeedLength, md5_digest);
+        MD5(seed, SeedLength, md5_digest);
         memcpy(&(g_global_matrix[i]), md5_digest, 4);
     }
 

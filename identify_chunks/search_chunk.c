@@ -8,6 +8,7 @@
 #define SymbolCount 256
 #define SeedLength 64
 #define CacheSize 1024 * 1024
+#define SlidingDis 16
 
 struct chunk_fingerprint
 {
@@ -42,7 +43,7 @@ void del_value_iter(struct chunk_fingerprint *src);
 void add_user(uint32_t weakHash, struct chunk_fingerprint strongHash);
 struct chunk_info *find_user(uint32_t user_id);
 int delete_all(void);
-void* delete_user(uint32_t weakHash);
+void *delete_user(uint32_t weakHash);
 int output_chunk_hash_info(void);
 void fastCDC_init(void);
 struct gear_hash fastCDC_chunking(char *src, int buffer_length);
@@ -60,7 +61,7 @@ int main(void)
     char *fileCache = (char *)malloc(CacheSize);
     int offset = 0, chunkLength = 0, readFlag = 0;
     fastCDC_init();
-    random_file = fopen("./random_data", "r+");
+    random_file = fopen("./random_data_2", "r+");
     readStatus = fread(fileCache, 1, CacheSize, random_file);
 
     for (;;)
@@ -183,7 +184,7 @@ struct chunk_info *find_user(uint32_t user_id)
     return s;
 }
 // delete chunk items
-void* delete_user(uint32_t weakHash)
+void *delete_user(uint32_t weakHash)
 {
     struct chunk_info *s;
     s = find_user(weakHash);
@@ -270,6 +271,7 @@ struct gear_hash fastCDC_chunking(char *src, int buffer_length)
     uint32_t gearHash = 0;
     output.g_fingerprint = gearHash;
     int n = buffer_length;
+    int slidingDistance = 0;
     // if (n <= MinSize){
 
     // }
@@ -280,8 +282,14 @@ struct gear_hash fastCDC_chunking(char *src, int buffer_length)
         expectCS = n;
     for (; i < expectCS; i++)
     {
+        slidingDistance += 1;
         fp = (fp << 1) + g_global_matrix[*(src + i)];
-        gearHash ^= g_global_matrix[*(src + i)];
+        if (slidingDistance % SlidingDis == 0)
+        {
+            gearHash += g_global_matrix[*(src + i)];
+            slidingDistance = 0;
+        }
+
         // if(i >= MinSize){
         //     printf("over min size!\n");
         // }
@@ -294,8 +302,14 @@ struct gear_hash fastCDC_chunking(char *src, int buffer_length)
     }
     for (; i < n; i++)
     {
+        slidingDistance += 1;
         fp = (fp << 1) + g_global_matrix[*(src + i)];
-        gearHash ^= g_global_matrix[*(src + i)];
+        gearHash += g_global_matrix[*(src + i)];
+        if (slidingDistance % SlidingDis == 0)
+        {
+            gearHash ^= g_global_matrix[*(src + i)];
+            slidingDistance = 0;
+        }
         if (!(fp & MaxMask))
         {
             output.g_fingerprint = gearHash;

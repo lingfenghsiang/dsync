@@ -8,7 +8,7 @@
 #define SymbolCount 256
 #define SeedLength 64
 #define CacheSize 1024 * 1024
-#define SlidingDis 16
+#define SlidingDis 32
 
 struct chunk_fingerprint
 {
@@ -61,23 +61,21 @@ int main(void)
     char *fileCache = (char *)malloc(CacheSize);
     int offset = 0, chunkLength = 0, readFlag = 0;
     fastCDC_init();
-    random_file = fopen("./random_data_2", "r+");
+    random_file = fopen("./random_data_5", "r+");
     readStatus = fread(fileCache, 1, CacheSize, random_file);
 
     for (;;)
     {
         chunk_num += 1;
-        /* 
-        // fixed sized
-        // get the length of the chunk, input the cache prt
-        chunkLength = 8192;
-        // calculate the fingerprints
+
+        gFingerprint = fastCDC_chunking(fileCache + offset, CacheSize - offset + 1);
+        // use fastFp
+        // weakHash = gFingerprint.g_fingerprint;
+        chunkLength = gFingerprint.length;
+
+        // use Adler32 weak hash
         weakHash = adler32(0L, Z_NULL, 0);
         weakHash = adler32(weakHash, fileCache + offset, chunkLength);
-        */
-        gFingerprint = fastCDC_chunking(fileCache + offset, CacheSize - offset + 1);
-        weakHash = gFingerprint.g_fingerprint;
-        chunkLength = gFingerprint.length;
 
         SHA1(fileCache + offset, chunkLength, SHA1_digest);
         // update the fingerprints of chunks
@@ -304,10 +302,9 @@ struct gear_hash fastCDC_chunking(char *src, int buffer_length)
     {
         slidingDistance += 1;
         fp = (fp << 1) + g_global_matrix[*(src + i)];
-        gearHash += g_global_matrix[*(src + i)];
         if (slidingDistance % SlidingDis == 0)
         {
-            gearHash ^= g_global_matrix[*(src + i)];
+            gearHash += g_global_matrix[*(src + i)];
             slidingDistance = 0;
         }
         if (!(fp & MaxMask))

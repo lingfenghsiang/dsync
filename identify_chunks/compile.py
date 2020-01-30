@@ -7,9 +7,6 @@ file_num = ['1', '2', '3', '4', '5']
 operationDict={'XOR':'^', "PLUS":'+'}
 operation = ['XOR', 'PLUS']
 
-dst_distance = "#define SlidingDis 32"
-dst_operation = "gearHash += g_global_matrix[*(src + i)];"
-
 filename = "search_chunk.c"
 pattern_distance = re.compile(r'#define SlidingDis .*')
 pattern_operation = re.compile(r'gearHash .=.*')
@@ -34,15 +31,15 @@ def contentSubstitute(filename, pattern, dst):
     os.system("mv "+filename + "tmp "+filename)
 
 
-for dist in slidingDistance:
-    contentSubstitute(filename, pattern_distance, "#define SlidingDis "+dist)
-    for oper in operation:
-        contentSubstitute(filename, pattern_operation,
-                          "gearHash " + operationDict[oper] + "= fp;")
-        for num in file_num:
-            contentSubstitute(filename, pattern_file_num, "random_data_" + num)
-            os.system("make;mv walk_chunks walk_chunks" + oper + dist + "_" + num)
+# for dist in slidingDistance:
+#     contentSubstitute(filename, pattern_distance, "#define SlidingDis "+dist)
+#     for oper in operation:
+#         contentSubstitute(filename, pattern_operation,
+#                           "gearHash " + operationDict[oper] + "= fp;")
+#         for num in file_num:
+#             contentSubstitute(filename, pattern_file_num, "random_data_" + num)
+#             os.system("make;mv walk_chunks walk_chunks" + oper + dist + "_" + num)
 
-# for num in file_num:
-#     contentSubstitute(filename, pattern_file_num, "random_data_" + num)
-#     os.system("make;mv walk_chunks walk_chunks_adler_" + num)
+for num in file_num:
+    contentSubstitute(filename, pattern_file_num, "random_data_" + num)
+    os.system("make;mv walk_chunks walk_chunks_adler_" + num)

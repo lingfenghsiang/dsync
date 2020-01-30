@@ -62,7 +62,7 @@ int main(void)
     unsigned char *fileCache = (char *)malloc(CacheSize);
     int offset = 0, chunkLength = 0, readFlag = 0;
     fastCDC_init();
-    random_file = fopen("./random_data_1", "r+");
+    random_file = fopen("./random_data_5", "r+");
     readStatus = fread(fileCache, 1, CacheSize, random_file);
 
     for (;;)
@@ -71,12 +71,12 @@ int main(void)
 
         gFingerprint = fastCDC_chunking(fileCache + offset, CacheSize - offset + 1);
         // use fastFp
-        weakHash = gFingerprint.g_fingerprint;
+        // weakHash = gFingerprint.g_fingerprint;
         chunkLength = gFingerprint.length;
         // printf("chunk size is %d\n", chunkLength);
         // use Adler32 weak hash
-        // weakHash = adler32(0L, Z_NULL, 0);
-        // weakHash = adler32(weakHash, fileCache + offset, chunkLength);
+        weakHash = adler32(0L, Z_NULL, 0);
+        weakHash = adler32(weakHash, fileCache + offset, chunkLength);
 
         SHA1(fileCache + offset, chunkLength, SHA1_digest);
         // update the fingerprints of chunks

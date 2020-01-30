@@ -1,5 +1,5 @@
 CC = gcc
-FLAG = -g
+FLAG = -g -O0
 LIB = -lcrypto -lz
 target:
 	$(CC) $(FLAG) search_chunk.c $(LIB) -o walk_chunks

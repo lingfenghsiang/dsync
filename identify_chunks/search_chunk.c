@@ -35,6 +35,7 @@ uint32_t MinMask;
 uint32_t MaxMask;
 uint32_t MinSize;
 uint32_t MaxSize;
+int sameCount = 0;
 int tmpCount = 0;
 
 // functions to call
@@ -46,7 +47,7 @@ int delete_all(void);
 void *delete_user(uint32_t weakHash);
 int output_chunk_hash_info(void);
 void fastCDC_init(void);
-struct gear_hash fastCDC_chunking(char *src, int buffer_length);
+struct gear_hash fastCDC_chunking(unsigned char *src, int buffer_length);
 
 int main(void)
 {
@@ -58,10 +59,10 @@ int main(void)
     struct gear_hash gFingerprint;
     size_t readStatus = 0;
     int chunk_num = 0, end = CacheSize - 1;
-    char *fileCache = (char *)malloc(CacheSize);
+    unsigned char *fileCache = (char *)malloc(CacheSize);
     int offset = 0, chunkLength = 0, readFlag = 0;
     fastCDC_init();
-    random_file = fopen("./random_data_5", "r+");
+    random_file = fopen("./random_data_1", "r+");
     readStatus = fread(fileCache, 1, CacheSize, random_file);
 
     for (;;)
@@ -70,12 +71,12 @@ int main(void)
 
         gFingerprint = fastCDC_chunking(fileCache + offset, CacheSize - offset + 1);
         // use fastFp
-        // weakHash = gFingerprint.g_fingerprint;
+        weakHash = gFingerprint.g_fingerprint;
         chunkLength = gFingerprint.length;
-
+        // printf("chunk size is %d\n", chunkLength);
         // use Adler32 weak hash
-        weakHash = adler32(0L, Z_NULL, 0);
-        weakHash = adler32(weakHash, fileCache + offset, chunkLength);
+        // weakHash = adler32(0L, Z_NULL, 0);
+        // weakHash = adler32(weakHash, fileCache + offset, chunkLength);
 
         SHA1(fileCache + offset, chunkLength, SHA1_digest);
         // update the fingerprints of chunks
@@ -99,7 +100,7 @@ int main(void)
             break;
     }
     printf("chunknum is %d\n", chunk_num);
-    printf("samechunk num is %d\n", tmpCount);
+    printf("samechunk num is %d\n", sameCount);
     // clear the items
     output_chunk_hash_info();
     delete_all();
@@ -169,7 +170,7 @@ void add_user(uint32_t weakHash, struct chunk_fingerprint strongHash)
         }
         else
         {
-            tmpCount += 1;
+            sameCount += 1;
             // printf("chunk already in hash table\n");
         }
     }
@@ -209,7 +210,7 @@ int output_chunk_hash_info(void)
     struct chunk_info *current_user, *tmp;
     struct chunk_fingerprint *tmp_data;
     int count = 0;
-    for (int i = 1; i < 30; i++)
+    for (int i = 1; i < 8; i++)
     {
         chunk_dist[i] = 0;
     }
@@ -232,7 +233,7 @@ int output_chunk_hash_info(void)
         chunk_dist[count - 1] += 1;
         count = 0;
     }
-    for (int i = 1; i < 30; i++)
+    for (int i = 1; i < 8; i++)
     {
         printf("the num for %d duplicate weak hash is %d\n", i + 1, chunk_dist[i]);
     }
@@ -240,7 +241,7 @@ int output_chunk_hash_info(void)
 
 void fastCDC_init(void)
 {
-    uint32_t md5_digest[4];
+    unsigned char md5_digest[16];
     uint8_t seed[SeedLength];
     for (int i = 0; i < SymbolCount; i++)
     {
@@ -259,7 +260,7 @@ void fastCDC_init(void)
     MaxMask = 0xd9000353; // 2^11
 }
 
-struct gear_hash fastCDC_chunking(char *src, int buffer_length)
+struct gear_hash fastCDC_chunking(unsigned char *src, int buffer_length)
 {
     // set the expected chunk size as 8KB
     expectCS = 8192;
@@ -274,25 +275,38 @@ struct gear_hash fastCDC_chunking(char *src, int buffer_length)
 
     // }
     //     return n;
+    tmpCount += 1;
+
     if (n >= MaxSize)
         n = MaxSize;
     else if (buffer_length <= expectCS)
         expectCS = n;
+
     for (; i < expectCS; i++)
     {
         slidingDistance += 1;
         fp = (fp << 1) + g_global_matrix[*(src + i)];
         if (slidingDistance % SlidingDis == 0)
         {
-            gearHash += g_global_matrix[*(src + i)];
+            gearHash += fp;
             slidingDistance = 0;
         }
+        // if (tmpCount == 1)
+        // {
 
+        //     if (i == 1)
+        //     {
+        //         printf("the **** is %d\n", expectCS);
+        //         printf("chunk size is %d, fp is %x, Mask is %x, fp & mask is %x\n", i, fp, MinMask, fp & MaxMask);
+        //     }
+        // }
         // if(i >= MinSize){
         //     printf("over min size!\n");
         // }
         if (!(fp & MinMask) && i >= MinSize)
         {
+            //    printf("chunk size is %d, fp is %x, Mask is %x, fp & mask is %x\n", i, fp, MinMask, fp & MaxMask);
+
             output.g_fingerprint = gearHash;
             output.length = i;
             return output;
@@ -300,11 +314,14 @@ struct gear_hash fastCDC_chunking(char *src, int buffer_length)
     }
     for (; i < n; i++)
     {
+
         slidingDistance += 1;
         fp = (fp << 1) + g_global_matrix[*(src + i)];
+
+
         if (slidingDistance % SlidingDis == 0)
         {
-            gearHash += g_global_matrix[*(src + i)];
+            gearHash += fp;
             slidingDistance = 0;
         }
         if (!(fp & MaxMask))
